@@ -5,7 +5,6 @@ import os
 import json
 import uuid
 
-from fetchmethods import fetch_pt_wordpress, fetch_gdrive
 from helpers import mkdir_recursive, partition
 
 #######################
@@ -29,7 +28,7 @@ def valid_url(s):
             if (s.startswith("http://") or
                 s.startswith("https://") or
                 s.startswith("./"))
-            else "url does not start with 'http://', 'https://', or './'")
+            else "url '%s' does not start with 'http://', 'https://', or './'" % s)
 
 
 def valid_source(s):
@@ -167,17 +166,14 @@ def expand_metadata_urls(m, rehost_dir):
     """ expands short urls in metadata to their full locations
         (dict, string) -> string
     """
-    if m["image_url"].startswith("./"):
-        m["image_url"] = os.path.join(
-            "img",
-            m["source_site"],
-            m["image_url"][2:])
 
-    if m["source_link"].startswith("./"):
-        m["source_link"] = os.path.join(
-            "video",
-            m["source_site"],
-            m["source_link"][2:])
+    fix_rehosted_url = lambda prefix, s: (
+        s if not s.startswith("./")
+        else os.path.join(prefix, s[2:]))
+
+    m["image_url"] = fix_rehosted_url("img", m["image_url"])
+    m["source_link"] = fix_rehosted_url("video", m["source_link"])
+
     return m
 
 
@@ -203,7 +199,7 @@ def load_all_metadata(data_path, rehost_dir="rehost"):
     """
     # get a list of paths to load
     files = reduce(
-        sum,
+        lambda a, b: a + b,
         [[os.path.join(p, f) for f in os.listdir(os.path.join(data_path, p))]
          for p in os.listdir(data_path)],
         [])
@@ -250,12 +246,6 @@ def load_all_metadata(data_path, rehost_dir="rehost"):
     # }]
 
     return []
-
-
-DEFAULT_FETCHERS = {
-    "pt-wordpress": fetch_pt_wordpress,
-    "google-drive": fetch_gdrive
-}
 
 
 def save_new_video(data_path, video):
@@ -318,7 +308,26 @@ def get_oldest_post(old_videos, source):
     return (source, "1970-01-01 00:00")
 
 
-def fetch_videos(data_directory, rehost_directory, fetchers=DEFAULT_FETCHERS):
+def remove_known_files(save_dir, fileslist):
+    """ removes already downloaded data from a sorted list of metadata
+
+        save_dir:
+            The path to the save directory
+
+        fileslist:
+            A sorted list of metadata objects, in reverse chronological order
+    """
+    i = 0
+    while (i < len(fileslist) and
+           not os.path.exists(
+            os.path.join(
+                save_dir,
+                fileslist[i]["uuid"] + ".json"))):
+        i += 1
+    return fileslist[0:i]
+
+
+def fetch_videos(data_directory, rehost_directory, fetchers={}):
     """ loads old videos from data_path and
         str, (str->[dict]), <str> -> [dict]
 
@@ -341,10 +350,12 @@ def fetch_videos(data_directory, rehost_directory, fetchers=DEFAULT_FETCHERS):
     # get new videos
     new_videos = reduce(
         lambda a, b: a + b,
-        (fetchers[site](
-            data_directory,
-            rehost_directory,
-            oldest_posts[site])
+        (remove_known_files(
+            os.path.join(data_directory, site),
+            fetchers[site](
+                data_directory,
+                rehost_directory,
+                oldest_posts[site]))
          for site in fetchers))
 
     # verify and save each new video to a file

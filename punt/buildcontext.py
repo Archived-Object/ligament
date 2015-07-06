@@ -49,7 +49,7 @@ class Context(object):
 
         return (direct_dependents +
                 reduce(
-                    sum,
+                    lambda a, b: a + b,
                     [self.deep_dependendants(x) for x in direct_dependents],
                     [])
                 )
@@ -62,7 +62,9 @@ class Context(object):
         targets = self.deep_dependendants(target)
         return sorted(targets,
                       cmp=lambda a, b:
-                          1 if b in self.deep_dependendants(a) else -1)
+                          1  if b in self.deep_dependendants(a) else 
+                          -1 if a in self.deep_dependendants(b) else
+                          0)
 
     def update_task(self, taskname, ignore_dependents=[]):
         print "updating task %s" % taskname
