@@ -2,9 +2,9 @@ import os
 import os
 import glob
 import shutil
-from buildtarget import BuildTarget
-from helpers import mkdir_recursive
-from buildcontext import DeferredDependency
+from ligament.buildtarget import BuildTarget
+from ligament.helpers import mkdir_recursive
+from ligament.buildcontext import DeferredDependency
 
 class BuildTargetList(BuildTarget):
 

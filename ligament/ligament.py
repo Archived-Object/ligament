@@ -2,29 +2,22 @@
 import os
 import sys
 import imp
-import getopt
 
 from buildtarget import BuildTarget, Context
-from punt_list import BuildTargetList
+from ligament_list import BuildTargetList
 from buildcontextfseventhandler import BuildContextFsEventHandler
 
 from time import sleep
 from watchdog.observers import Observer
 
 
-import logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-
-
-def run_puntfile(puntfile_path, tasks, watch=True):
+def run_skeleton(ligamentfile_path, tasks, watch=True):
     sys.path.insert(0, '.')
-    puntfile = imp.load_source('puntfile', puntfile_path)
+    ligamentfile = imp.load_source('ligamentfile', ligamentfile_path)
 
     build_context = Context()
 
-    for name, task in puntfile.punt_tasks.iteritems():
+    for name, task in ligamentfile.ligament_tasks.iteritems():
         if isinstance(task, BuildTarget):
             print "registered task '%s'" % name
             task.register_with_context(name, build_context)
@@ -32,7 +25,7 @@ def run_puntfile(puntfile_path, tasks, watch=True):
             BuildTargetList(task).register_with_context(name, build_context)
 
     for task in tasks:
-        for name in puntfile.punt_tasks[task]:
+        for name in ligamentfile.ligament_tasks[task]:
             build_context.build_task(name)
 
     if watch:
@@ -67,24 +60,3 @@ def run_puntfile(puntfile_path, tasks, watch=True):
         except KeyboardInterrupt:
             observer.stop()
         observer.join()
-
-
-def main():
-    options, args = getopt.gnu_getopt(
-        sys.argv[1:],
-        "w",
-        "watch")
-
-    should_watch = False
-
-    for opt, arg in options:
-        if opt == "--watch" or opt == '-w':
-            should_watch = True
-        else:
-            print "opt %s not recognized" % opt
-
-    run_puntfile(
-        "./puntfile.py",
-        ["default"] if len(args) == 0 else args,
-        watch=should_watch)
-

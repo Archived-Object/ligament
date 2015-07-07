@@ -1,8 +1,8 @@
 import os
 import glob
 import shutil
-from buildtarget import BuildTarget
-from helpers import mkdir_recursive
+from ligament.buildtarget import BuildTarget
+from ligament.helpers import mkdir_recursive
 
 class Copy(BuildTarget):
 

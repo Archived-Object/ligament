@@ -1,4 +1,6 @@
 from helpers import perror
+from exceptions import TaskExecutionException
+import traceback
 
 
 class Context(object):
@@ -28,13 +30,19 @@ class Context(object):
             self.provides_for[data_src] = [data_sink]
 
     def build_task(self, name):
-        if name not in self.build_stack:
-            self.build_stack.append(name)
+        self.build_stack.append(name)
+        try:
             self.value_table[name] = self.tasks[name].resolve_and_build()
-            self.build_stack = self.build_stack[0:-1]
-        else:
-            perror("cyclic dependency on %s." % name)
-            perror("build stack %s" % ", ".join(self.build_stack))
+        except TaskExecutionException as e:
+            perror(e.header, indent="+0")
+            perror(e.message, indent="+4")
+            self.value_table[name] = None
+        except Exception as e:
+            perror("error evaluating target '%s'" % name)
+            perror(traceback.format_exc(e), indent='+4')
+            self.value_table[name] = None
+
+        self.build_stack = self.build_stack[0:-1]
 
         if name not in self.built:
             self.built.append(name)
