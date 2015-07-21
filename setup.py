@@ -37,7 +37,7 @@ setup(
     keywords='ligament grunt build automation',
     install_requires=['watchdog>=0.8.3', 'colorama>=0.3.3'],
 
-    packages=['ligament', 'ligament_list', 'ligament_fs',
+    packages=['ligament', 'ligament_fs',
               'ligament_precompiler_template'],
     entry_points={
         'console_scripts': [

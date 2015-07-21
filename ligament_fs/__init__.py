@@ -1,3 +1,5 @@
+""" Basic filesystem operations for the `ligament` task operator """
+
 import os
 import glob
 import shutil
