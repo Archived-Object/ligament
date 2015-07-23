@@ -7,7 +7,8 @@ from ligament.helpers import (
     zip_with_output,
     mkdir_recursive,
     partition,
-    capture_exception)
+    capture_exception,
+    pdebug)
 
 from ligament.buildtarget import BuildTarget
 from ligament.exceptions import TaskExecutionException
@@ -18,7 +19,7 @@ class Precompiler(BuildTarget):
 
         classes that extend Precompiler must do the following at minimum:
 
-            declare inline_template_string to a template string with a single
+            declare external_template_string to a template string with a single
             %s, where the value of the compiled filename will be placed
 
             declare embed_template_string to a template string with a single
@@ -30,17 +31,18 @@ class Precompiler(BuildTarget):
 
     """
 
-    inline_template_string = None
+    external_template_string = None
     embed_template_string = None
 
     def __init__(self,
                  minify=True,
-                 inline=True,
+                 embed=True,
+                 concat=True,
                  source_dir=None,
                  target_dir=None,
                  build_targets=[],
                  relative_directory="./",
-                 inline_template_string=None,
+                 external_template_string=None,
                  embed_template_string=None,
                  **kwargs):
 
@@ -49,6 +51,12 @@ class Precompiler(BuildTarget):
         self.relative_directory = relative_directory
         self.input_directory = os.path.abspath(source_dir)
         self.output_directory = os.path.abspath(target_dir)
+
+        self.compiler_name = "???"
+
+        pdebug(self.input_directory)
+        pdebug(self.output_directory)
+
         self.build_targets = [os.path.abspath(
                               os.path.join(
                                   self.input_directory,
@@ -58,12 +66,13 @@ class Precompiler(BuildTarget):
         self.file_watch_targets = self.build_targets
 
         if embed_template_string:
-          self.embed_template_string=embed_template_string
-        if inline_template_string:
-          self.inline_template_string=inline_template_string
+            self.embed_template_string = embed_template_string
+        if external_template_string:
+            self.external_template_string = external_template_string
 
         self.minify = minify
-        self.embed  = inline
+        self.embed  = embed
+        self.concat = concat
 
     def out_path_of(self, in_path):
         """given the input path of a file, return the ouput path"""
@@ -77,11 +86,29 @@ class Precompiler(BuildTarget):
     @zip_with_output(skip_args=[0])
     def compile_and_process(self, in_path):
         """compile a file, save it to the ouput file if the inline flag true"""
+
+        out_path = self.path_mapping[in_path]
+        if not self.embed:
+            pdebug("[%s::%s] %s -> %s" % (
+                self.compiler_name,
+                self.name,
+                os.path.relpath(in_path),
+                os.path.relpath(out_path)),
+                groups=["build_task"],
+                autobreak=True)
+        else:
+            pdebug("[%s::%s] %s -> <cache>" % (
+                self.compiler_name,
+                self.name,
+                os.path.relpath(in_path)),
+                groups=["build_task"],
+                autobreak=True)
+
         compiled_string = self.compile_file(in_path)
 
         if not self.embed:
             if compiled_string != "":
-                with open(self.out_path_of(in_path), "w") as f:
+                with open(out_path, "w") as f:
                     f.write(compiled_string)
 
         return compiled_string
@@ -91,22 +118,25 @@ class Precompiler(BuildTarget):
             all target files
         """
         if self.embed:
-            concat_scripts = "\n".join(
-                [self.compiled_scripts[path]
-                 for path in self.collected_build_order])
+            if self.concat:
+                concat_scripts = [self.compiled_scripts[path]
+                                  for path in self.build_order]
 
-            return (self.embed_template_string % concat_scripts)
+                return [self.embed_template_string % '\n'.join(concat_scripts)]
+            else:
+                return [self.embed_template_string %
+                        self.compiled_scripts[path]
+                        for path in self.build_order]
         else:
-            return "\n".join(
-                [self.inline_template_string %
-                 os.path.join(
-                     self.relative_directory,
-                     os.path.relpath(
-                         self.out_path_of(path),
-                         self.output_directory))
+            return [self.external_template_string %
+                    os.path.join(
+                        self.relative_directory,
+                        os.path.relpath(
+                            self.out_path_of(path),
+                            self.output_directory))
 
-                 for path in self.collected_build_order
-                 if self.compiled_scripts[path] != ""])
+                    for path in self.build_order
+                    if self.compiled_scripts[path] != ""]
 
     def build(self):
         """build the scripts and return a string"""
@@ -115,16 +145,21 @@ class Precompiler(BuildTarget):
             mkdir_recursive(self.output_directory)
 
         # get list of script files in build order
-        self.collected_build_order = remove_dups(
+        self.build_order = remove_dups(
             reduce(lambda a, b: a + glob.glob(b),
                    self.build_targets,
                    []))
+        self.build_order_output = [self.out_path_of(t)
+                                   for (t) in self.build_order]
+        self.path_mapping = dict(zip(
+            self.build_order,
+            self.build_order_output))
 
         self.compiled_scripts = {}
         exceptions, values = partition(
             lambda x: isinstance(x, Exception),
             [self.compile_and_process(target)
-             for target in self.collected_build_order])
+             for target in self.build_order])
 
         self.compiled_scripts.update(dict(values))
 

@@ -82,6 +82,14 @@ def build_lst(a, b):
     else:
         return b
 
+def flatten_list(strs):
+    return ([str(strs)]
+            if not isinstance(strs, list) 
+            else reduce(
+                lambda a, b: a + b,
+                [flatten_list(s) for s in strs],
+                []))
+
 ###############
 #             #
 #   File IO   #
@@ -147,6 +155,27 @@ def indent_text(*strs, **kwargs):
     """
     # python 2.7 workaround
     indent = kwargs["indent"] if "indent" in kwargs else"+0"
+    autobreak = kwargs.get("autobreak", False)
+    char_limit = kwargs.get("char_limit", 80)
+    split_char = kwargs.get("split_char", " ")
+
+    strs = list(strs)
+
+    if autobreak:
+        for index, s in enumerate(strs):
+            if len(s) > char_limit:
+                strs[index] = []
+                spl =  s.split(split_char)
+                result = []
+                collect = ""
+                for current_block in spl:
+                    if len(current_block) + len(collect) > char_limit:
+                        strs[index].append(collect[:-1] + "\n") 
+                        collect = "    "
+                    collect += current_block + split_char
+                strs[index].append(collect + "\n")
+
+        strs = flatten_list(strs)
 
     global lasting_indent
     if indent.startswith("++"):

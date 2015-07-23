@@ -12,10 +12,10 @@ class BuildContextFsEventHandler(FileSystemEventHandler):
         self.context = context
 
         self.file_depends = {}
-        for name, task in context.tasks.iteritems():
+        for name, entry in context.tasks.iteritems():
             glob_targets = reduce(
                 lambda a, b: a + b,
-                [glob.glob(x) for x in task.task.file_watch_targets],
+                [glob.glob(x) for x in entry.task.file_watch_targets],
                 [])
 
             for file_target in glob_targets:
@@ -25,8 +25,6 @@ class BuildContextFsEventHandler(FileSystemEventHandler):
                     self.file_depends[file_target] = [name]
 
     def on_modified(self, event):
-        print 
-        print "%s modified" % event.src_path
         if event.src_path in self.file_depends:
             for name in self.file_depends[event.src_path]:
                 self.context.lock_task(name)

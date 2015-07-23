@@ -1,4 +1,4 @@
-from helpers import perror, pdebug
+from helpers import perror, pdebug, pout
 from exceptions import TaskExecutionException
 import traceback
 import time
@@ -76,8 +76,8 @@ class Context(object):
             perror(e.message, indent="+4")
             self._gettask(name).value = e.payload
         except Exception as e:
-            perror("error evaluating target '%s' %s" % 
-                (name, type(self._gettask(name).task)))
+            perror("error evaluating target '%s' %s" %
+                   (name, type(self._gettask(name).task)))
             perror(traceback.format_exc(e), indent='+4')
             self._gettask(name).value = None
 
@@ -101,15 +101,13 @@ class Context(object):
         """
 
         unobserved_dependencies = set(self.tasks.keys())
-        observed_dependencies = set()
         target_queue = []
-        current_graph_pass = []
 
         while len(unobserved_dependencies) > 0:
             target_queue = [unobserved_dependencies.pop()]
 
             while target_queue is not []:
-                target_queue += unobserved_depe
+                target_queue += unobserved_dependencies
 
         # verify_provides_depends_match()
 
@@ -139,7 +137,7 @@ class Context(object):
                           0)
 
     def update_task(self, taskname, ignore_dependents=[]):
-        print "updating task %s" % taskname
+        pout("updating task %s" % taskname)
         last_value = self._gettask(taskname).value
         self.build_task(taskname)
 
@@ -151,6 +149,8 @@ class Context(object):
                     self.update_task(
                         dependent,
                         ignore_dependents=dependent_order[index:])
+        else:
+            pdebug("no change in %s" % taskname)
 
     def lock_task(self, name):
         pass
@@ -161,16 +161,19 @@ class Context(object):
     def expose_task(self, name):
         self.tasks[name].exposed = True
 
+
 class DeferredDependency(object):
 
     def __init__(self, *target_names, **kw):
-
         # python2 2.7 workaround for kwargs after target_names
-        self.processfn = kw.get(
+        self.function = kw.get(
             'function',
             lambda **k: k.values()[0] if len(k) == 1 else k)
         """A kwarg function to be called on the results of all the dependencies
         """
+
+        self.keyword_chain = kw.get('keyword_chain', [])
+        """The chain of attribute accesses on each target"""
 
         self.parent = None
         """The name of the object this dependency provides for.
@@ -184,12 +187,30 @@ class DeferredDependency(object):
 
     def resolve(self):
         """Builds all targets of this dependency and returns the result
-           of processfn on the resulting values
+           of self.function on the resulting values
         """
         values = {}
         for target_name in self.target_names:
             if self.context.is_build_needed(self.parent, target_name):
                 self.context.build_task(target_name)
 
-            values[target_name] = self.context.tasks[target_name].value
-        return self.processfn(**values)
+            if len(self.keyword_chain) == 0:
+                values[target_name] = self.context.tasks[target_name].value
+            else:
+                values[target_name] = reduce(
+                    lambda task, name: getattr(task, name),
+                    self.keyword_chain,
+                    self.context.tasks[target_name].task)
+        return self.function(**values)
+
+    def get_context(self):
+        return self.context
+
+    def get_parent(self):
+        return self.context
+
+    def __getattr__(self, name):
+        return DeferredDependency(
+            *self.target_names,
+            function=self.function,
+            keyword_chain=(self.keyword_chain + [name]))

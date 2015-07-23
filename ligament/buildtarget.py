@@ -10,6 +10,17 @@ class BuildTarget(object):
         Tasks extending buildtarget are expected to pass the keyword argument
         data_dependencies up from their declaration.    
     """
+
+    @property
+    def name(self):
+        return (self._name 
+                if self._name is not None
+                else "<unnamed>")
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+
     def __init__(self,
                  data_dependencies={}):
         
@@ -35,6 +46,9 @@ class BuildTarget(object):
                     bul=4)
         """
 
+        self._name = None
+        """ The name of this task in its registered build context """
+
         self.context = None
         """ The build context this target is registered with """
 
@@ -49,7 +63,7 @@ class BuildTarget(object):
                             "BuildContexts")
 
         context.register_task(myname, self)
-        self.name = myname
+        self._name = myname
         self.context = context
 
         for key in self.data_dependencies:

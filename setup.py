@@ -18,7 +18,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
 
 setup(
     name='ligament',
-    version='0.0.1.devl',
+    version='0.0.0.dev',
     description='A grunt-like build system for python',
     url='http://github.com/Adjective-Object/ligament',
     author='Adjective-Object',
@@ -31,7 +31,7 @@ setup(
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Build Tools',
 
-        'License :: OSI Approved :: Apache 2',
+        'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7'],
 
     keywords='ligament grunt build automation',

@@ -51,7 +51,7 @@ def main():
     for opt, arg in options:
         if opt == "--watch" or opt == '-w':
             should_watch = True
-        if opt == "--query" or opt == '-q':
+        elif opt == "--query" or opt == '-q':
             query_skeleton = True
         elif opt == "--help" or opt == '-h':
             print_helptext()
@@ -59,7 +59,7 @@ def main():
         elif opt == "--verbose" or opt == '-v':
             verbose = True
         else:
-            print "option %s not recognized" % opt
+            print "option '%s' not recognized" % opt
             print_helptext()
             exit(1)
 
