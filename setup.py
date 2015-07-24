@@ -18,7 +18,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
 
 setup(
     name='ligament',
-    version='0.0.0.dev',
+    version='0.0.3.dev',
     description='A grunt-like build system for python',
     url='http://github.com/Adjective-Object/ligament',
     author='Adjective-Object',
